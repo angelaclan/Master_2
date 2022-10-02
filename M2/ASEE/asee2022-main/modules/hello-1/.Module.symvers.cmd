@@ -1,1 +1,0 @@
-cmd_/home/angela/M2/ASEE/asee2022-main/modules/hello-1/Module.symvers := sed 's/ko$$/o/' /home/angela/M2/ASEE/asee2022-main/modules/hello-1/modules.order | scripts/mod/modpost -m -a  -o /home/angela/M2/ASEE/asee2022-main/modules/hello-1/Module.symvers -e -i Module.symvers   -T -

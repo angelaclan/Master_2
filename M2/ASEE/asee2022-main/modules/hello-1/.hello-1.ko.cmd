@@ -1,1 +1,0 @@
-cmd_/home/angela/M2/ASEE/asee2022-main/modules/hello-1/hello-1.ko := ld -r  -m elf_x86_64 -z noexecstack   --build-id=sha1  -T scripts/module.lds -o /home/angela/M2/ASEE/asee2022-main/modules/hello-1/hello-1.ko /home/angela/M2/ASEE/asee2022-main/modules/hello-1/hello-1.o /home/angela/M2/ASEE/asee2022-main/modules/hello-1/hello-1.mod.o;  true
