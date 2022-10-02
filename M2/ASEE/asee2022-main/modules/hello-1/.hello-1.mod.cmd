@@ -1,0 +1,1 @@
+cmd_/home/angela/M2/ASEE/asee2022-main/modules/hello-1/hello-1.mod := printf '%s\n'   hello-1.o | awk '!x[$$0]++ { print("/home/angela/M2/ASEE/asee2022-main/modules/hello-1/"$$0) }' > /home/angela/M2/ASEE/asee2022-main/modules/hello-1/hello-1.mod
