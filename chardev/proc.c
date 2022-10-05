@@ -4,6 +4,7 @@
  */
 
 #include "chardev.h"
+//#include "proc.h"
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0) 
 #define HAVE_PROC_OPS 
 #endif
@@ -11,8 +12,10 @@
 #define PROCFS_MAX_SIZE 1024 
 #define PROCFS_NAME "asee_channel" 
 
-#ifdef HAVE_PROC_OPS 
 
+extern struct buffer buffer_s;
+
+static struct class* cls;
 
 static struct proc_dir_entry *our_proc_file; /* This structure hold information about the /proc file */ 						
 static char procfs_buffer[PROCFS_MAX_SIZE]; /* The buffer used to store character for this module */ 
@@ -24,27 +27,21 @@ static const struct proc_ops proc_file_fops = {
     .proc_write = procfile_write, 
 }; 
 
-#else 
-
-static const struct file_operations proc_file_fops = { 
-   
-    .read = procfile_read, 
-    .write = procfile_write, 
+static struct file_operations chardv_fops = {
+	.read = device_read,
+	.write = device_write,
+	.open = device_open,
+	.release = device_release,
 }; 
 
-#endif 
-
- 
-extern static struct buffer; 
-
 /* This function is called then the /proc file is read */
-static ssize_t procfile_read(struct file *filePointer, char __user *buffer, size_t buffer_length, loff_t *offset) 
+ssize_t procfile_read(struct file *filePointer, char __user *buffer, size_t buffer_length, loff_t *offset) 
 { 
 
-    int len = sizeof(buffer_s->msg); 
+    int len = sizeof(buffer_s.msg); 
     ssize_t ret = len;  
 
-    if (copy_to_user(buffer, b->msg, len)) { 
+    if (copy_to_user(buffer, buffer_s.msg, len)) { 
         pr_info("copy_to_user failed\n"); 
         ret = 0; 
     } else { 
@@ -56,9 +53,12 @@ static ssize_t procfile_read(struct file *filePointer, char __user *buffer, size
 }  
 
 /* This function is called with the /proc file is written. */ 
-static ssize_t procfile_write(struct file *file, const char __user *buff, size_t len, loff_t *off) 
+ssize_t procfile_write(struct file *file, const char __user *buff, size_t len, loff_t *off) 
 
 {    					
+   	long new_bufsize = 0;
+    int bufsize_output = 0;
+    
    	procfs_buffer_size = len; 
    															 
     if (procfs_buffer_size > PROCFS_MAX_SIZE) 
@@ -70,12 +70,10 @@ static ssize_t procfile_write(struct file *file, const char __user *buff, size_t
     procfs_buffer[procfs_buffer_size & (PROCFS_MAX_SIZE - 1)] = '\0'; /* kernel buffer must end string with '\0' */
     pr_info("procfile write %s\n", procfs_buffer);
     
-    int new_bufsize = 0;
-    int bufsize_output = 0;
     
-    if (kstrol(procfs_buffer, 10, new_bufsize))  /* transfrom number_string to int, using as new buffer size */ 
+    if (kstrtol(procfs_buffer, 10, &new_bufsize))  /* transfrom number_string to int, using as new buffer size */ 
     	return -EINVAL ;
-    bufsize_output = buffer_changesize(buffer_s, new_bufsize); /* cmp given buffer size and kernel buffer size, store the msg, allocat memeory space */   
+    bufsize_output = buffer_changesize(&buffer_s, new_bufsize); /* cmp given buffer size and kernel buffer size, store the msg, allocat memeory space */   
     
     pr_info("new buffer size : %d\n", bufsize_output); 
 	
@@ -83,8 +81,7 @@ static ssize_t procfile_write(struct file *file, const char __user *buff, size_t
 } 
  
 
-static int __init procfs2_init(void) 
-
+int __init procfs2_init(void) 
 { 
     our_proc_file = proc_create(PROCFS_NAME, 0644, NULL, &proc_file_fops); 
 
@@ -93,22 +90,34 @@ static int __init procfs2_init(void)
         pr_alert("Error:Could not initialize /proc/%s\n", PROCFS_NAME); 
         return -ENOMEM; 
     } 
-
+    
+	buffer_init(&buffer_s, 16);
+	buffer_s.major = register_chrdev(0, DEVICE_NAME, &chardv_fops);
+	
+	if (buffer_s.major < 0) {
+		pr_alert("Registering char device failed with %d\n", buffer_s.major);
+		return buffer_s.major;
+	}
+	pr_info("Assigned major number : %d\n", buffer_s.major);
+	cls = class_create(THIS_MODULE, DEVICE_NAME);
+	device_create(cls, NULL, MKDEV(buffer_s.major, 0), NULL, DEVICE_NAME);
+	pr_info("Device created on /dev/%s\n", DEVICE_NAME);
+	
     pr_info("/proc/%s created\n", PROCFS_NAME); 
 
     return 0; 
 } 
 
- 
-
-static void __exit procfs2_exit(void) 
-
-{ 
+void __exit procfs2_exit(void) 
+{   
+	device_destroy(cls, MKDEV(buffer_s.major, 0));
+	class_destroy(cls);
+	buffer_free(&buffer_s);
+	unregister_chrdev(buffer_s.major, DEVICE_NAME);
+	
     proc_remove(our_proc_file); 
     pr_info("/proc/%s removed\n", PROCFS_NAME); 
 } 
-
- 
 
 module_init(procfs2_init); 
 
