@@ -4,7 +4,7 @@
  */
 
 #include "chardev.h"
-//#include "proc.h"
+#include "proc.h"
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0) 
 #define HAVE_PROC_OPS 
 #endif
